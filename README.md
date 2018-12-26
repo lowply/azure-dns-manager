@@ -2,6 +2,14 @@
 
 Simple DNS manager for Azure DNS.
 
+## Install
+
+```
+go get github.com/lowply/azure-dns-manager
+```
+
+Note that installing it with `go get` will take some time.
+
 ## Prep
 
 ```
