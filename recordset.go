@@ -68,10 +68,12 @@ func NewRecordSet(v dns.RecordSet) (*RecordSet, error) {
 		}
 	case "TXT":
 		for _, v := range *v.RecordSetProperties.TxtRecords {
-			r.Properties.Values = append(r.Properties.Values, "")
-			for _, s := range *v.Value {
-				r.Properties.Values[0] += s
+			// Concat values into one string
+			s := ""
+			for _, w := range *v.Value {
+				s += w
 			}
+			r.Properties.Values = append(r.Properties.Values, s)
 		}
 	default:
 		return nil, nil
@@ -176,20 +178,22 @@ func (r *RecordSet) createOrUpdate() (*dns.RecordSet, error) {
 		}
 		recordSet.RecordSetProperties.NsRecords = &records
 	case "TXT":
-		// here
-		if len(r.Properties.Values) != 1 {
-			return nil, errors.New("Invalid txt records")
-		}
 		records := []dns.TxtRecord{}
+		for _, v := range r.Properties.Values {
+			record := dns.TxtRecord{}
+			values := []string{}
 
-		vals := r.splitSubN(r.Properties.Values[0], 255)
-		if len(vals) == 0 {
-			return nil, errors.New("Invalid txt records")
+			if len(v) > 255 {
+				// If an element is more than 255 characters, split it into slices
+				values = r.splitSubN(v, 255)
+			} else {
+				// Otherwise just add it as the first value of the values slice
+				values = append(values, v)
+			}
+
+			record.Value = &values
+			records = append(records, record)
 		}
-		record := dns.TxtRecord{}
-		record.Value = &vals
-
-		records = append(records, record)
 		recordSet.RecordSetProperties.TxtRecords = &records
 	default:
 		// We don't handle CAA, PTR, SOA and SRV records
