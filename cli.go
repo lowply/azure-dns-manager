@@ -119,6 +119,20 @@ func (c *CLI) syncZone(zone string) error {
 	return nil
 }
 
+func (c *CLI) getNS(zone string) error {
+	// Current zone
+	_, err := NewZone(zone, true)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range nsrecords {
+		fmt.Println(v)
+	}
+
+	return nil
+}
+
 func (c *CLI) Run(args []string) int {
 	err := c.prep()
 	if err != nil {
@@ -130,6 +144,7 @@ func (c *CLI) Run(args []string) int {
 	flags.SetOutput(c.errStream)
 	optSync := flags.String("s", "", "Zone name to sync the zone")
 	optGet := flags.String("g", "", "Zone name to get the zone")
+	optNS := flags.String("ns", "", "Zone name to get the NS record")
 	optPath := flags.String("p", "", "Path to save the zone as a yaml file")
 	optHelp := flags.Bool("h", false, "Help message")
 
@@ -170,6 +185,14 @@ func (c *CLI) Run(args []string) int {
 
 	if *optSync != "" {
 		err := c.syncZone(*optSync)
+		if err != nil {
+			fmt.Fprintln(c.errStream, err)
+			return ExitCodeParseFlagError
+		}
+	}
+
+	if *optNS != "" {
+		err := c.getNS(*optNS)
 		if err != nil {
 			fmt.Fprintln(c.errStream, err)
 			return ExitCodeParseFlagError
