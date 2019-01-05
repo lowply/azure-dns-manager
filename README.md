@@ -5,15 +5,22 @@ Simple DNS manager for Azure DNS.
 ## Install
 
 ```
-go get github.com/lowply/azure-dns-manager
+go get -u github.com/lowply/azure-dns-manager
 ```
 
 Note that installing it with `go get` will take some time.
 
 ## Prep
 
+Create the config dir
+
 ```
 mkdir -p ~/.config/azure-dns-manager
+```
+
+Generate Azure auth file
+
+```
 az ad sp create-for-rbac -n "azure-dns-manager" --role contributor --sdk-auth true > ~/.config/azure-dns-manager/auth.json
 ```
 
@@ -43,8 +50,14 @@ When the `-p` flag is omitted, the `example.com_remote.yaml` file will be saved 
 azure-dns-manager -g example.com
 ```
 
+Getting NS records for a domain
+
+```
+azure-dns-manager -ns example.com
+```
+
 ## Note
 
-- Doesn't touch SOA and NS records for safety reason (TTL can be changed for NS records)
+- Doesn't touch SOA and NS records for safety reason (Only TTL can be changed for NS records)
 - Doesn't support CAA, PTR and SRV records
 - Alias support will come soon (Ref: [Announcing Alias records for Azure DNS | Blog | Microsoft Azure](https://azure.microsoft.com/en-us/blog/announcing-alias-records-for-azure-dns/))
