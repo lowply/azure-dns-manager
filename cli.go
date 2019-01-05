@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/google/go-cmp/cmp"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -18,16 +20,24 @@ type CLI struct {
 	outStream, errStream io.Writer
 }
 
-var zonedir = os.Getenv("HOME") + "/.config/azure-dns-manager/zones"
-
 func (c *CLI) prep() error {
-	err := os.MkdirAll(zonedir, 0777)
+	if os.Getenv("AZURE_DNS_ZONES") == "" {
+		return errors.New("AZURE_DNS_ZONES is empty")
+	}
+
+	if os.Getenv("AZURE_AUTH_LOCATION") == "" {
+		return errors.New("AZURE_AUTH_LOCATION is empty")
+	}
+
+	_, err := os.Stat(os.Getenv("AZURE_DNS_ZONES"))
 	if err != nil {
+		fmt.Fprintln(c.errStream, "Wrong path for AZURE_DNS_ZONES")
 		return err
 	}
 
 	_, err = os.Stat(os.Getenv("AZURE_AUTH_LOCATION"))
 	if err != nil {
+		fmt.Fprintln(c.errStream, "Wrong path for AZURE_AUTH_LOCATION")
 		return err
 	}
 
@@ -44,20 +54,18 @@ func (c *CLI) prep() error {
 	return nil
 }
 
-func (c *CLI) getZone(zone, path string) error {
-	if path == "" {
-		path = zonedir + "/" + zone + "_remote.yaml"
-	}
-
+func (c *CLI) getZone(zone string) error {
 	z, err := NewZone(zone, true)
 	if err != nil {
 		return err
 	}
 
-	err = z.writeToFile(path)
+	data, err := yaml.Marshal(z)
 	if err != nil {
 		return err
 	}
+
+	fmt.Println(string(data))
 
 	return nil
 }
@@ -142,10 +150,9 @@ func (c *CLI) Run(args []string) int {
 
 	flags := flag.NewFlagSet(Name, flag.ContinueOnError)
 	flags.SetOutput(c.errStream)
-	optSync := flags.String("s", "", "Zone name to sync the zone")
-	optGet := flags.String("g", "", "Zone name to get the zone")
-	optNS := flags.String("ns", "", "Zone name to get the NS record")
-	optPath := flags.String("p", "", "Path to save the zone as a yaml file")
+	optSync := flags.String("s", "", "Sync a zone from the file to Azure DNS")
+	optGet := flags.String("g", "", "Get a zone file from Azure DNS")
+	optNS := flags.String("ns", "", "Get NS records for a domain")
 	optHelp := flags.Bool("h", false, "Help message")
 
 	err = flags.Parse(args[1:])
@@ -176,7 +183,7 @@ func (c *CLI) Run(args []string) int {
 	}
 
 	if *optGet != "" {
-		err := c.getZone(*optGet, *optPath)
+		err := c.getZone(*optGet)
 		if err != nil {
 			fmt.Fprintln(c.errStream, err)
 			return ExitCodeParseFlagError

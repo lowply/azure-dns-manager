@@ -66,22 +66,8 @@ func (z *Zone) readFromRemote() error {
 	return nil
 }
 
-func (z *Zone) writeToFile(path string) error {
-	data, err := yaml.Marshal(z)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(path, data, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (z *Zone) readFromFile() error {
-	file, err := os.Open(zonedir + "/" + z.Name + ".yaml")
+	file, err := os.Open(os.Getenv("AZURE_DNS_ZONES") + "/" + z.Name + ".yaml")
 	if err != nil {
 		return err
 	}
