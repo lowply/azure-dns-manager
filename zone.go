@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/Azure/azure-sdk-for-go/services/preview/dns/mgmt/2018-03-01-preview/dns"
 	"gopkg.in/yaml.v2"
@@ -67,7 +68,9 @@ func (z *Zone) readFromRemote() error {
 }
 
 func (z *Zone) readFromFile() error {
-	file, err := os.Open(os.Getenv("AZURE_DNS_ZONES") + "/" + z.Name + ".yaml")
+	filepath := filepath.Join(azure_dns_zones, z.Name+".yaml")
+
+	file, err := os.Open(filepath)
 	if err != nil {
 		return err
 	}

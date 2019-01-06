@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/google/go-cmp/cmp"
 	yaml "gopkg.in/yaml.v2"
@@ -20,28 +22,34 @@ type CLI struct {
 	outStream, errStream io.Writer
 }
 
+var azure_dns_zones string
+
 func (c *CLI) prep() error {
 	if os.Getenv("AZURE_DNS_ZONES") == "" {
 		return errors.New("AZURE_DNS_ZONES is empty")
 	}
 
+	azure_dns_zones = filepath.Clean(os.Getenv("AZURE_DNS_ZONES"))
+
 	if os.Getenv("AZURE_AUTH_LOCATION") == "" {
 		return errors.New("AZURE_AUTH_LOCATION is empty")
 	}
 
-	_, err := os.Stat(os.Getenv("AZURE_DNS_ZONES"))
+	azure_auth_location := filepath.Clean(os.Getenv("AZURE_AUTH_LOCATION"))
+
+	_, err := os.Stat(azure_dns_zones)
 	if err != nil {
-		fmt.Fprintln(c.errStream, "Wrong path for AZURE_DNS_ZONES")
+		fmt.Fprintf(c.errStream, "Wrong path for AZURE_DNS_ZONES: %v\n", azure_dns_zones)
 		return err
 	}
 
-	_, err = os.Stat(os.Getenv("AZURE_AUTH_LOCATION"))
+	_, err = os.Stat(azure_auth_location)
 	if err != nil {
-		fmt.Fprintln(c.errStream, "Wrong path for AZURE_AUTH_LOCATION")
+		fmt.Fprintf(c.errStream, "Wrong path for AZURE_AUTH_LOCATION: %v\n", azure_auth_location)
 		return err
 	}
 
-	session, err = NewAzureSession()
+	session, err = NewAzureSession(azure_auth_location)
 	if err != nil {
 		return err
 	}
@@ -70,12 +78,12 @@ func (c *CLI) getZone(zone string) error {
 	return nil
 }
 
-func (c *CLI) createIfNot(zone string) error {
+func (c *CLI) exist(zone string) (bool, error) {
 	exist := false
 
 	list, err := session.listZones()
 	if err != nil {
-		return err
+		return exist, err
 	}
 
 	for _, v := range *list {
@@ -84,20 +92,23 @@ func (c *CLI) createIfNot(zone string) error {
 		}
 	}
 
+	return exist, nil
+}
+
+func (c *CLI) syncZone(zone string) error {
+	exist, err := c.exist(zone)
+	if err != nil {
+		return err
+	}
+
 	if !exist {
 		err = session.createZone(zone)
 		if err != nil {
 			return err
 		}
-	}
 
-	return nil
-}
-
-func (c *CLI) syncZone(zone string) error {
-	err := c.createIfNot(zone)
-	if err != nil {
-		return err
+		filepath := filepath.Join(azure_dns_zones, zone, ".yaml")
+		ioutil.WriteFile(filepath, []byte(""), 0644)
 	}
 
 	// Current zone

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 
 	"github.com/pkg/errors"
 
@@ -45,13 +44,13 @@ func readJSON(path string) (*map[string]interface{}, error) {
 	return &contents, err
 }
 
-func NewAzureSession() (*AzureSession, error) {
+func NewAzureSession(auth_file_path string) (*AzureSession, error) {
 	authorizer, err := auth.NewAuthorizerFromFile(azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't initialize authorizer")
 	}
 
-	authInfo, err := readJSON(os.Getenv("AZURE_AUTH_LOCATION"))
+	authInfo, err := readJSON(auth_file_path)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't get authinfo")
 	}
