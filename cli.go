@@ -101,14 +101,16 @@ func (c *CLI) syncZone(zone string) error {
 		return err
 	}
 
+	// Create a new zone and quit if it doesn't exist
 	if !exist {
 		err = session.createZone(zone)
 		if err != nil {
 			return err
 		}
 
-		filepath := filepath.Join(azure_dns_zones, zone, ".yaml")
-		ioutil.WriteFile(filepath, []byte(""), 0644)
+		filepath := filepath.Join(azure_dns_zones, zone+".yaml")
+		ioutil.WriteFile(filepath, []byte("Zone: "+zone), 0644)
+		return nil
 	}
 
 	// Current zone

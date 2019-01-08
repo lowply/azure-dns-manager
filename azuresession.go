@@ -77,7 +77,7 @@ func (s *AzureSession) createZone(zonename string) error {
 		return err
 	}
 
-	fmt.Printf("New zone has been created: %v\n", *result.Name)
+	fmt.Printf("A new zone has been created: %v\n", *result.Name)
 
 	return nil
 }
