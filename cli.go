@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/google/go-cmp/cmp"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -123,12 +122,6 @@ func (c *CLI) syncZone(zone string) error {
 	local, err := NewZone(zone, false)
 	if err != nil {
 		return err
-	}
-
-	// Compare entire zones first.
-	if cmp.Equal(remote, local) {
-		fmt.Println("No change")
-		return nil
 	}
 
 	// Sync from local to remote.

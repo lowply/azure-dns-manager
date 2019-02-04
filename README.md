@@ -112,5 +112,5 @@ Please refer to [Overview of DNS zones and records](https://docs.microsoft.com/e
 ## Note
 
 - Doesn't touch SOA and NS records for safety reason (Only TTL can be changed for NS records)
-- Doesn't support CAA, PTR and SRV records
+- Doesn't support PTR and SRV records
 - Alias support will come soon (Ref: [Announcing Alias records for Azure DNS | Blog | Microsoft Azure](https://azure.microsoft.com/en-us/blog/announcing-alias-records-for-azure-dns/))
