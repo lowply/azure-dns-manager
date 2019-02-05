@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/sha1"
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -31,8 +29,15 @@ type RecordSet struct {
 }
 
 type Properties struct {
-	TTL    int      `yaml:"TTL"`
-	Values []string `yaml:"Values,omitempty"`
+	TTL           int           `yaml:"TTL,omitempty"`
+	Values        []string      `yaml:"Values,omitempty"`
+	CaaProperties []CaaProperty `yaml:"CaaProperties,omitempty"`
+}
+
+type CaaProperty struct {
+	Flags *int32 `yaml:"Flags,omitempty"`
+	Tag   string `yaml:"Tag,omitempty"`
+	Value string `yaml:"Value,omitempty"`
 }
 
 // Create new local RecordSet from dns.RecordSet
@@ -75,6 +80,18 @@ func NewRecordSet(v dns.RecordSet) (*RecordSet, error) {
 			}
 			r.Properties.Values = append(r.Properties.Values, s)
 		}
+	case "CAA":
+		cps := []CaaProperty{}
+		for _, v := range *v.RecordSetProperties.CaaRecords {
+			cp := CaaProperty{
+				Flags: v.Flags,
+				Tag:   *v.Tag,
+				Value: *v.Value,
+			}
+			cps = append(cps, cp)
+		}
+
+		r.Properties.CaaProperties = cps
 	default:
 		return nil, nil
 	}
@@ -100,19 +117,6 @@ func (r *RecordSet) splitSubN(s string, n int) []string {
 	}
 
 	return subs
-}
-
-func (r *RecordSet) sha1Sum() string {
-	values := ""
-	for _, v := range r.Properties.Values {
-		values += v
-	}
-	data := r.Name + r.Type + strconv.Itoa(r.Properties.TTL) + values
-	h := sha1.New()
-	io.WriteString(h, data)
-
-	str := fmt.Sprintf("%x", h.Sum(nil))
-	return str
 }
 
 func (r *RecordSet) createOrUpdate() (*dns.RecordSet, error) {
@@ -195,8 +199,20 @@ func (r *RecordSet) createOrUpdate() (*dns.RecordSet, error) {
 			records = append(records, record)
 		}
 		recordSet.RecordSetProperties.TxtRecords = &records
+	case "CAA":
+		records := []dns.CaaRecord{}
+		for i, _ := range r.Properties.CaaProperties {
+			// Don't use _, v here because `range` copies the values and &v doesn't work
+			record := dns.CaaRecord{}
+			i32 := int32(*r.Properties.CaaProperties[i].Flags)
+			record.Flags = &i32
+			record.Tag = &r.Properties.CaaProperties[i].Tag
+			record.Value = &r.Properties.CaaProperties[i].Value
+			records = append(records, record)
+		}
+		recordSet.RecordSetProperties.CaaRecords = &records
 	default:
-		// We don't handle CAA, PTR, SOA and SRV records
+		// We don't handle PTR, SOA and SRV records
 		// Just return nil to let the loop continue
 		return nil, nil
 	}
@@ -270,8 +286,16 @@ func (r *RecordSet) message() {
 	}
 
 	fmt.Printf("%v on %v will be "+verb+". Values:\n", r.Name, r.Type)
-	fmt.Printf("    TTL: %v\n", r.Properties.TTL)
-	for _, v := range r.Properties.Values {
-		fmt.Printf("    %v\n", v)
+	if r.Type != "CAA" {
+		fmt.Printf("    TTL: %v\n", r.Properties.TTL)
+		for _, v := range r.Properties.Values {
+			fmt.Printf("    %v\n", v)
+		}
+	} else {
+		for _, v := range r.Properties.CaaProperties {
+			fmt.Printf("    Flags: %v\n", *v.Flags)
+			fmt.Printf("    Tag: %v\n", v.Tag)
+			fmt.Printf("    Value: %v\n", v.Value)
+		}
 	}
 }

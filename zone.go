@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/Azure/azure-sdk-for-go/services/preview/dns/mgmt/2018-03-01-preview/dns"
+	"github.com/mitchellh/hashstructure"
 	"gopkg.in/yaml.v2"
 )
 
@@ -56,7 +58,7 @@ func (z *Zone) readFromRemote() error {
 			return err
 		}
 
-		// Skip append if the type is one of CAA, PTR, SOA and SRV.
+		// Skip append if the type is one of PTR, SOA and SRV.
 		if r == nil {
 			continue
 		}
@@ -88,7 +90,8 @@ func (z *Zone) readFromFile() error {
 	return nil
 }
 
-func (z *Zone) markDelete(t *Zone) error {
+func (z *Zone) markDelete(t *Zone) (int, error) {
+	count := 0
 R:
 	for i, v := range z.RecordSets {
 		for _, k := range t.RecordSets {
@@ -98,11 +101,13 @@ R:
 		}
 		z.RecordSets[i].Mark = Delete
 		z.RecordSets[i].ZoneName = z.Name
+		count++
 	}
-	return nil
+	return count, nil
 }
 
-func (z *Zone) markCreate(t *Zone) error {
+func (z *Zone) markCreate(t *Zone) (int, error) {
+	count := 0
 R:
 	for i, v := range z.RecordSets {
 		for _, k := range t.RecordSets {
@@ -112,44 +117,61 @@ R:
 		}
 		z.RecordSets[i].Mark = Create
 		z.RecordSets[i].ZoneName = z.Name
+		count++
 	}
-	return nil
+	return count, nil
 }
 
-func (z *Zone) markUpdate(t *Zone) error {
+func (z *Zone) markUpdate(t *Zone) (int, error) {
+	count := 0
 R:
 	for i, v := range z.RecordSets {
 		if v.Mark == Create {
 			continue
 		}
+		hashv, err := hashstructure.Hash(v, nil)
+		if err != nil {
+			return 0, err
+		}
 		for _, k := range t.RecordSets {
-			if v.sha1Sum() == k.sha1Sum() {
+			hashk, err := hashstructure.Hash(k, nil)
+			if err != nil {
+				return 0, err
+			}
+			if hashv == hashk {
 				continue R
 			}
 		}
 		z.RecordSets[i].Mark = Update
 		z.RecordSets[i].ZoneName = z.Name
+		count++
 	}
-	return nil
+	return count, nil
 }
 
 func (z *Zone) syncRecordSets(remote *Zone) error {
+
 	// mark Delete first
-	err := remote.markDelete(z)
+	cd, err := remote.markDelete(z)
 	if err != nil {
 		return err
 	}
 
 	// mark Create next
-	err = z.markCreate(remote)
+	cc, err := z.markCreate(remote)
 	if err != nil {
 		return err
 	}
 
 	// Finally, mark Update for the rest of the records
-	err = z.markUpdate(remote)
+	cu, err := z.markUpdate(remote)
 	if err != nil {
 		return err
+	}
+
+	if cd+cc+cu == 0 {
+		fmt.Println("No change")
+		return nil
 	}
 
 	// Delete first
