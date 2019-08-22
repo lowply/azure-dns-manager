@@ -1,0 +1,7 @@
+.dockerignore
+.git
+.gitignore
+Dockerfile
+bin
+docker-compose.yml
+run.sh

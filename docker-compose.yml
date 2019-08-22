@@ -1,0 +1,6 @@
+version: '3.7'
+services:
+  main:
+    build: .
+    image: lowply/azure-dns-manager
+    container_name: azure-dns-manager
