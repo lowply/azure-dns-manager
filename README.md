@@ -1,3 +1,9 @@
+## This repository has been archvied.
+
+Azure DNS Manager was a learning project for me, and not maintained anymore. The best alternative is [octodns/octodns: Tools for managing DNS across multiple providers](https://github.com/octodns/octodns).
+
+---
+
 # Azure DNS Manager
 
 Simple DNS manager for Azure DNS.
